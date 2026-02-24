@@ -299,7 +299,7 @@ def visualize_3d(pts3d, colors, R, t, K, img1, img2, resolution, mask=None):
     except KeyboardInterrupt:
         print("Closing Viser viewer...")
 
-def draw_correspondences(img1, img2, pts1, pts2, mask=None):
+def draw_correspondences(img1, img2, pts1, pts2, colors, mask=None):
     """
     Draws points from both images side-by-side and connects matched points with lines.
     """
@@ -314,27 +314,28 @@ def draw_correspondences(img1, img2, pts1, pts2, mask=None):
     for i in range(len(pts1)):
         pt1 = tuple(map(int, pts1[i]))
         pt2 = tuple(map(int, pts2[i]))
+        color_pt = tuple(map(int, colors[i]))
         
         # Offset x coordinate for second image
         pt2_offset = (pt2[0] + w1, pt2[1])
         
         # Draw points
-        cv2.circle(out_img, pt1, 5, (0, 0, 255), -1) # Red for image 1
+        cv2.circle(out_img, pt1, 5, color_pt, -1) # Original color for image 1
         cv2.circle(out_img, pt2_offset, 5, (0, 255, 0), -1) # Green for image 2
         
         # Draw connecting line
-        color = (128, 128, 128) # Grey default
+        line_color = (128, 128, 128) # Grey default
         thickness = 1
         
         # Highlight inliers if mask is provided
         if mask is not None:
             if mask[i]:
-                color = (200, 200, 200) # Light grey for RANSAC inliers
+                line_color = (200, 200, 200) # Light grey for RANSAC inliers
                 thickness = 1
             else:
-                color = (64, 64, 64) # Dark grey for outliers
+                line_color = (64, 64, 64) # Dark grey for outliers
                 
-        cv2.line(out_img, pt1, pt2_offset, color, thickness)
+        cv2.line(out_img, pt1, pt2_offset, line_color, thickness)
         
     return out_img
 
@@ -420,6 +421,7 @@ def main():
     # 5. Evaluate distances for debugging and Establish Correspondences
     matched_pts1 = []
     matched_pts2 = []
+    matched_colors = []
     
     if len(pts2) > 0:
         pts2_h = np.hstack((pts2, np.ones((len(pts2), 1))))
@@ -439,6 +441,7 @@ def main():
             if min_dist <= args.threshold:
                 matched_pts1.append(pts1[i])
                 matched_pts2.append(pts2[min_idx])
+                matched_colors.append(colors[i])
                 
         print(f"\n--- Correspondence Analysis ---")
         print(f"Mean distance from epipolar lines to closest points in image 2: {np.mean(distances):.2f} pixels")
@@ -459,7 +462,7 @@ def main():
                 print(t_est)
                 
                 # Visualize Correspondences
-                out_matches_img = draw_correspondences(img1, img2, matched_pts1, matched_pts2, mask=mask)
+                out_matches_img = draw_correspondences(img1, img2, matched_pts1, matched_pts2, matched_colors, mask=mask)
                 out_matches_name = f"matches_{img1_name}_to_{img2_name}.png"
                 out_matches_path = os.path.join(args.out_dir, out_matches_name)
                 cv2.imwrite(out_matches_path, out_matches_img)
@@ -496,11 +499,11 @@ def main():
                     if args.use_gt_pose:
                         print("\nTriangulating using Ground Truth Pose...")
                         pts3d = triangulate_points(matched_pts1, matched_pts2, K, R_gt, t_gt)
-                        visualize_3d(pts3d, colors, R_gt, t_gt, K, img1, img2, frame1['resolution'], mask=mask)
+                        visualize_3d(pts3d, matched_colors, R_gt, t_gt, K, img1, img2, frame1['resolution'], mask=mask)
                     else:
                         print("\nTriangulating using Estimated RANSAC Pose...")
                         pts3d = triangulate_points(matched_pts1, matched_pts2, K, R_est, t_est)
-                        visualize_3d(pts3d, colors, R_est, t_est, K, img1, img2, frame1['resolution'], mask=mask)
+                        visualize_3d(pts3d, matched_colors, R_est, t_est, K, img1, img2, frame1['resolution'], mask=mask)
         else:
             print("Not enough candidate correspondences for RANSAC (< 5).")
     
