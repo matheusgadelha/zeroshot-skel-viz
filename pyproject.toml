@@ -1,0 +1,14 @@
+[project]
+name = "zeroshot-skel-viz"
+version = "0.1.0"
+description = "Visualize epipolar lines from 3D projected keypoints"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "opencv-python",
+    "viser",
+]
+
+[tool.uv]
+package = false
